@@ -1,11 +1,23 @@
 import javax.imageio.ImageIO;
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 
 public class GUIWindow extends JFrame {
+
+    private MusicPlayer musicPlayer;
+
+    private JFileChooser jFileChooser;
+
+    private JLabel songTitle, songArtist;
+
+    private JPanel playbackButtons;
+
     public GUIWindow(){
         super("MP3 Player"); // initialization and title of the window
 
@@ -20,6 +32,11 @@ public class GUIWindow extends JFrame {
         setLayout(null); // null layout which allows more customization later
         getContentPane().setBackground(FRAME_COLOR);
 
+        // Add an explorer menu to choose files
+        jFileChooser = new JFileChooser();
+        jFileChooser.setCurrentDirectory((new File("src/assets/Music")));
+        jFileChooser.setFileFilter(new FileNameExtensionFilter("MP3","mp3"));
+        musicPlayer = new MusicPlayer();
         setComponents();
     }
     public static final Color FRAME_COLOR = Color.BLACK;
@@ -30,7 +47,7 @@ public class GUIWindow extends JFrame {
 
         // Song Title
 
-        JLabel songTitle = new JLabel("Song Title");
+        songTitle = new JLabel("Song Title");
         songTitle.setBounds(0,285,getWidth() - 10, 30);
         songTitle.setFont(new Font("Rockwell",Font.BOLD,24));
         songTitle.setForeground(TEXT_COLOR);
@@ -39,7 +56,7 @@ public class GUIWindow extends JFrame {
 
         //Song Artist
 
-        JLabel songArtist = new JLabel("Artist");
+        songArtist = new JLabel("Artist");
         songArtist.setBounds(0,315,getWidth()-10,30);
         songArtist.setFont(new Font("Rockwell",Font.PLAIN,24));
         songArtist.setForeground(TEXT_COLOR);
@@ -74,7 +91,28 @@ public class GUIWindow extends JFrame {
 
         JMenu songMenu = new JMenu("Song"); // drop down menu for songs
         menu.add(songMenu);
-        JMenuItem songLoad = new JMenuItem("Load Song"); // Load song option
+        JMenuItem songLoad = new JMenuItem("Load Song");  // Load song option
+        songLoad.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // integer value that indicates what action user performed
+                int result = jFileChooser.showOpenDialog(GUIWindow.this);
+                File selectedFile = jFileChooser.getSelectedFile();
+
+                // check if user pressed open button on file explorer window
+                if(result == JFileChooser.APPROVE_OPTION && selectedFile != null){
+                    //create a song object for selected file
+                    Song song = new Song (selectedFile.getPath());
+
+                    musicPlayer.loadSong(song);
+                    // update song title and artist
+                    updateSongInfo(song);
+
+                    //Toggle pause and play button
+                    togglePauseButton();
+                }
+            }
+        });
         songMenu.add(songLoad);
 
         JMenu playlistMenu = new JMenu("Playlist"); //drop down menu for playlists
@@ -95,7 +133,7 @@ public class GUIWindow extends JFrame {
     }
 
     private void setPlaybackButtons(){
-    JPanel playbackButtons = new JPanel();
+    playbackButtons = new JPanel();
     playbackButtons.setBounds(0,435,getWidth()-10,80);
     playbackButtons.setBackground(null);
 
@@ -111,6 +149,15 @@ public class GUIWindow extends JFrame {
         playButton.setBorderPainted(false);
         playButton.setBackground(null);
         playButton.setOpaque(false);
+        playButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                //toggle play button and pause button
+                togglePauseButton();
+
+                musicPlayer.playCurrentSong();
+            }
+        });
         playbackButtons.add(playButton);
 
     // Pause Button
@@ -119,6 +166,16 @@ public class GUIWindow extends JFrame {
         pauseButton.setBackground(null);
         pauseButton.setOpaque(false);
         pauseButton.setVisible(false);
+        pauseButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Toggle pause button and play button
+                togglePlayButton();
+
+                //Pause Song
+                musicPlayer.pauseSong();
+            }
+        });
         playbackButtons.add(pauseButton);
 
     // Next Button
@@ -131,6 +188,31 @@ public class GUIWindow extends JFrame {
     add(playbackButtons);
     }
 
+    private void updateSongInfo(Song song){
+        songTitle.setText(song.getSongTitle());
+        songArtist.setText(song.getSongArtist());
+    }
+
+    private void togglePauseButton(){
+        JButton playButton = (JButton) playbackButtons.getComponent(1);
+        JButton pauseButton = (JButton) playbackButtons.getComponent(2);
+
+        playButton.setVisible(false);
+        playButton.setEnabled(false);
+
+        pauseButton.setVisible(true);
+        pauseButton.setEnabled(true);
+    }
+    private void togglePlayButton(){
+        JButton playButton = (JButton) playbackButtons.getComponent(1);
+        JButton pauseButton = (JButton) playbackButtons.getComponent(2);
+
+        playButton.setVisible(true);
+        playButton.setEnabled(true);
+
+        pauseButton.setVisible(false);
+        pauseButton.setEnabled(false);
+    }
     private ImageIcon setImage(String imagePath){
         try{
             BufferedImage image = ImageIO.read(new File(imagePath));
