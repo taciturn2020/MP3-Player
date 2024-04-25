@@ -150,8 +150,31 @@ public class GUIWindow extends JFrame {
         JMenu playlistMenu = new JMenu("Playlist"); //drop down menu for playlists
         menu.add(playlistMenu);
         JMenuItem createPlaylist = new JMenuItem("Create a Playlist"); // create playlist option
+        createPlaylist.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+            new PlayerDialogBox(GUIWindow.this).setVisible(true);
+            }
+        });
         playlistMenu.add(createPlaylist);
         JMenuItem loadPlaylist = new JMenuItem("Load a Playlist"); // load playlist option
+        loadPlaylist.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JFileChooser jFileChooser = new JFileChooser();
+                jFileChooser.setFileFilter(new FileNameExtensionFilter("Playlist","txt"));
+                jFileChooser.setCurrentDirectory(new File("src/assets/PlaylistFiles"));
+
+                int result = jFileChooser.showOpenDialog(GUIWindow.this);
+                File selectedFile = jFileChooser.getSelectedFile();
+
+                if(result ==  jFileChooser.APPROVE_OPTION && selectedFile != null){
+                    musicPlayer.stopSong();
+
+                    musicPlayer.loadPlaylist(selectedFile);
+                }
+            }
+        });
         playlistMenu.add(loadPlaylist);
 
 
@@ -174,6 +197,13 @@ public class GUIWindow extends JFrame {
         prevButton.setBorderPainted(false);
         prevButton.setBackground(null);
         prevButton.setOpaque(false);
+        prevButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // previous song
+                musicPlayer.prevSong();
+            }
+        });
         playbackButtons.add(prevButton);
 
     // Play Button
@@ -215,17 +245,25 @@ public class GUIWindow extends JFrame {
         nextButton.setBorderPainted(false);
         nextButton.setBackground(null);
         nextButton.setOpaque(false);
+        nextButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Move to next song
+                musicPlayer.nextSong();
+
+            }
+        });
         playbackButtons.add(nextButton);
     playbackButtons.setOpaque(false);
     add(playbackButtons);
     }
 
-    private void updateSongInfo(Song song){
+    public void updateSongInfo(Song song){
         songTitle.setText(song.getSongTitle());
         songArtist.setText(song.getSongArtist());
     }
 
-    private void togglePauseButton(){
+    public void togglePauseButton(){
         JButton playButton = (JButton) playbackButtons.getComponent(1);
         JButton pauseButton = (JButton) playbackButtons.getComponent(2);
 
@@ -235,7 +273,7 @@ public class GUIWindow extends JFrame {
         pauseButton.setVisible(true);
         pauseButton.setEnabled(true);
     }
-    private void togglePlayButton(){
+    public void togglePlayButton(){
         JButton playButton = (JButton) playbackButtons.getComponent(1);
         JButton pauseButton = (JButton) playbackButtons.getComponent(2);
 
@@ -253,7 +291,7 @@ public class GUIWindow extends JFrame {
 
     }
 
-    private void updatePlayBackSlider(Song song){
+    public void updatePlayBackSlider(Song song){
         //Max count for slider
         playbackSlider.setMaximum(song.getMp3File().getFrameCount());
 

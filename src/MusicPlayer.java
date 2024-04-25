@@ -2,8 +2,8 @@ import javazoom.jl.player.advanced.AdvancedPlayer;
 import javazoom.jl.player.advanced.PlaybackEvent;
 import javazoom.jl.player.advanced.PlaybackListener;
 
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
+import java.io.*;
+import java.util.ArrayList;
 
 public class MusicPlayer extends PlaybackListener {
     // Store song's details through song class
@@ -11,6 +11,10 @@ public class MusicPlayer extends PlaybackListener {
     public Song getCurrentSong(){
         return currentSong;
     }
+
+    private ArrayList<Song> playlist;
+
+    private int currentPlaylistIndex;
 
     private static final Object playSignal = new Object(); // used to sync the update slider and playmusic threads
 
@@ -22,6 +26,9 @@ public class MusicPlayer extends PlaybackListener {
 
     // boolean to check paused
     private boolean isPaused;
+
+    private boolean songFinished;
+    private boolean pressedNext, pressedPrev;
 
     // Stores the frame for playback pausing / resuming
     private int currentFrame;
@@ -44,11 +51,55 @@ public class MusicPlayer extends PlaybackListener {
     public void loadSong(Song song){
         currentSong = song;
 
+        playlist = null;
+
+        if (!songFinished)
+            stopSong();
+
         if(currentSong != null){
             playCurrentSong();
+            currentFrame = 0;
+            currentTimeInMS = 0;
+            guiWindow.setPlaybackSliderValue(0);
         }
 
 
+    }
+
+    public void loadPlaylist(File playlistFile){
+        playlist = new ArrayList<>();
+
+        try{
+            FileReader fileReader = new FileReader(playlistFile);
+            BufferedReader bufferedReader = new BufferedReader(fileReader);
+
+            String songPath = new String(); // Read and store each line from the text file into this variable
+            while((songPath = bufferedReader.readLine()) != null){
+                // Create a song object based on the read file path
+                Song song = new Song(songPath);
+
+                playlist.add(song);
+
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        if (playlist.size() > 0){
+            guiWindow.setPlaybackSliderValue(0); // reset slider
+            currentTimeInMS = 0;
+
+            currentSong = playlist.get(0); // update song to the start of the playlist
+
+            currentFrame = 0; // Start from the beginning
+
+            guiWindow.togglePauseButton();
+            guiWindow.updateSongInfo(currentSong);
+            guiWindow.updatePlayBackSlider(currentSong);
+
+
+            playCurrentSong();
+        }
     }
     public void stopSong(){
         if(advancedPlayer != null){
@@ -57,6 +108,65 @@ public class MusicPlayer extends PlaybackListener {
             advancedPlayer = null;
         }
 
+    }
+    public void nextSong(){
+        if(playlist == null)
+            return; // return null if no song left in playlist
+
+        // make sure there is a song in playlist to go next to
+        if (currentPlaylistIndex + 1 > playlist.size() - 1)
+            return;
+
+        pressedNext = true;
+
+
+        if (!songFinished)
+            stopSong();
+
+        currentPlaylistIndex++;
+
+        currentSong = playlist.get(currentPlaylistIndex);
+
+        // set frame and ms count to 0
+        currentFrame = 0;
+        currentTimeInMS = 0;
+
+        //update song info
+        guiWindow.togglePauseButton();
+        guiWindow.updateSongInfo(currentSong);
+        guiWindow.updatePlayBackSlider(currentSong);
+
+        playCurrentSong();
+
+    }
+
+    public void prevSong(){
+        if(playlist == null) return; // return null if no song left in playlist
+
+        // make sure there is a song in playlist to go back to
+        if (currentPlaylistIndex - 1 < 0)
+            return;
+
+        pressedPrev = true;
+
+
+        if (!songFinished)
+            stopSong();
+
+        currentPlaylistIndex--;
+
+        currentSong = playlist.get(currentPlaylistIndex);
+
+        // set frame and ms count to 0
+        currentFrame = 0;
+        currentTimeInMS = 0;
+
+        //update song info
+        guiWindow.togglePauseButton();
+        guiWindow.updateSongInfo(currentSong);
+        guiWindow.updatePlayBackSlider(currentSong);
+
+        playCurrentSong();
     }
 
     public void pauseSong(){
@@ -127,7 +237,7 @@ public class MusicPlayer extends PlaybackListener {
                         e.printStackTrace();
                     }
                 }
-                while(!isPaused){
+                while(!isPaused && !songFinished && !pressedNext && !pressedPrev){
                     try {
                         currentTimeInMS++;
                         // convert time for Milliseconds to frames
@@ -151,6 +261,9 @@ public class MusicPlayer extends PlaybackListener {
         // starting of song
         super.playbackStarted(evt);
         System.out.println("playBack Started");
+        songFinished = false;
+        pressedNext = false;
+        pressedPrev = false;
     }
 
     @Override
@@ -159,8 +272,32 @@ public class MusicPlayer extends PlaybackListener {
         super.playbackFinished(evt);
         System.out.println("playback finished");
         System.out.println("Stopped @" + evt.getFrame());
-        if (isPaused == true)
-        // converting frame values to millisecond value
-            currentFrame += (int) ((double)evt.getFrame() * currentSong.getFrameRatePerMS());
+        if (isPaused == true) {
+            // converting frame values to millisecond value
+            currentFrame += (int) ((double) evt.getFrame() * currentSong.getFrameRatePerMS());
+        }
+        else{
+            // if user pressed next or prev button, return null to avoid double calling nextSong function
+            if (pressedNext || pressedPrev)
+                return;
+
+            // Song end
+            songFinished = true;
+
+
+            if (playlist == null)
+                guiWindow.togglePlayButton();
+            else{
+                if (currentPlaylistIndex == playlist.size() - 1){
+                    // stop playback
+                    guiWindow.togglePlayButton();
+                }
+                else{
+                    // go to next song
+                    nextSong();
+                }
+            }
+
+        }
     }
 }
